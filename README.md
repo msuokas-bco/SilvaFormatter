@@ -1,6 +1,6 @@
 ## SilvaFormatter
 
-#### Overview
+### Overview
 
 SilvaFormatter is a R package designed to prepare SILVA reference files for microbiome analysis. Primarily it is intended to be used for non-redundant data set.
 
@@ -12,7 +12,7 @@ If you use tool, please cite the original article.
 
 Callahan, B. J., McMurdie, P. J., Rosen, M. J., Han, A. W., Johnson, A. J. A., & Holmes, S. P. (2016). **DADA2: High-resolution sample inference from Illumina amplicon data**. *Nature Methods*, **13**, 581–583. <https://doi.org/10.1038/nmeth.3869>
 
-#### 
+### 
 Installation
 
 You can install SilvaFormatter directly from GitHub:
@@ -27,11 +27,11 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
 devtools::install_github("msuokas-bco/SilvaFormatter")
 ```
 
-#### Dependencies
+### Dependencies
 
-SilvaFormatter requires the following R packages: - Biostrings - ShortRead - dada2
+SilvaFormatter requires the following R packages: - Biostrings - ShortRead - dada2 (optional)
 
-#### Usage
+### Usage
 
 The main function provided by this package is `makeFastaSilvaNR()`:
 
@@ -49,7 +49,7 @@ makeFastaSilvaNR(
 )
 ```
 
-#### Function Parameters
+### Function Parameters
 
 | Parameter | Description |
 |---------------------------------|---------------------------------------|
@@ -61,7 +61,7 @@ makeFastaSilvaNR(
 | `compress` | Logical; whether to compress the FASTA output using gzip (default: TRUE) |
 | `n_euk` | Integer; number of Eukaryota sequences to include in the final output (default: 100) |
 
-#### What the Function Does
+### What the Function Does
 
 The `makeFastaSilvaNR()` function performs the following operations:
 
@@ -73,14 +73,14 @@ The `makeFastaSilvaNR()` function performs the following operations:
 6.  Randomly selects a specified number of Eukaryota sequences to include
 7.  Outputs a cleaned FASTA file (optionally compressed) and a taxonomy TSV file
 
-#### Output Files
+### Output Files
 
 1.  **FASTA file**: Contains the selected sequences with cleaned headers
 2.  **Taxonomy TSV file**: A tab-separated file with two columns:
     -   ID: The sequence identifier
     -   Taxonomy: The cleaned taxonomic lineage
 
-#### Example Workflow
+### Example Workflow
 
 ``` r
 library(SilvaFormatter)
