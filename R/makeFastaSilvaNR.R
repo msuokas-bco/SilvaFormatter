@@ -17,37 +17,54 @@
 #'
 #' @examples
 #' \dontrun{
-#' makeFastaSilvaNR_with_ids("SILVA.fasta", "SILVA_taxonomy.tsv",
-#'                           "output.fasta.gz", "output_taxonomy.tsv",
-#'                           include.species = TRUE, compress = TRUE, n_euk = 10000)
+#' makeFastaSilvaNR("SILVA.fasta", "SILVA_taxonomy.tsv",
+#'                  "output.fasta.gz", "output_taxonomy.tsv",
+#'                  include.species = TRUE, compress = TRUE, n_euk = 10000)
 #'}
 makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
-                                      include.species = TRUE,
-                                      compress = TRUE,
-                                      n_euk = 100) {
+                             include.species = TRUE,
+                             compress = TRUE,
+                             n_euk = 100) {
+  # Read RNA sequences from FASTA file and convert to DNA
   xset <- DNAStringSet(readRNAStringSet(fin, format = "fasta"))
-  taxl <- names(xset)
-  ref_ids <- sapply(strsplit(names(xset), "\\s"), `[`, 1)
-  names(taxl) <- ref_ids
-  if (any(duplicated(names(taxl)))) stop("Duplicated sequence IDs detected.")
-  names(xset) <- names(taxl)
 
+  # Extract the description lines (these are stored in 'names(xset)')
+  descriptions <- names(xset)
+
+  # Extract sequence IDs (first word before the space)
+  ref_ids <- sapply(strsplit(descriptions, "\\s"), `[`, 1)
+
+  # Check for duplicated IDs
+  if (any(duplicated(ref_ids))) stop("Duplicated sequence IDs detected.")
+
+  # Store the full descriptions with the sequence IDs as names
+  taxl <- descriptions
+  names(taxl) <- ref_ids
+
+  # Rename sequences with their IDs for easier indexing
+  names(xset) <- ref_ids
+
+  # Extract taxonomic information (everything after the ID in the description)
   taxl <- gsub("^[A-Za-z0-9.]+\\s", "", taxl)
   taxl <- gsub(";YM;", ";", taxl)
   taxa <- strsplit(taxl, ";")
 
+  # Read taxonomy reference data
   silva.taxa <- read.table(ftax, sep = "\t", col.names = c("Taxon", "V2", "Level", "V4", "V5"),
                            stringsAsFactors = FALSE)[, c("Taxon", "Level")]
 
+  # Filter by kingdom
   kingdom <- sapply(taxa, `[`, 1)
   taxl.ba <- taxl[kingdom %in% c("Bacteria", "Archaea")]
   taxa.ba <- taxa[names(taxl.ba)]
 
+  # Create taxonomy matrix for Bacteria and Archaea
   taxa.ba.mat <- matrix(sapply(taxa.ba, function(flds) {
     c(flds[1], flds[2], flds[3], flds[4], flds[5], flds[6])
   }), ncol = 6, byrow = TRUE)
   rownames(taxa.ba.mat) <- names(taxl.ba)
 
+  # Build taxonomic strings for validation
   taxa.ba.mat.string <- matrix("UNDEF", nrow = nrow(taxa.ba.mat), ncol = ncol(taxa.ba.mat))
   rownames(taxa.ba.mat.string) <- names(taxl.ba)
   taxa.ba.mat.string[, 1] <- paste0(taxa.ba.mat[, 1], ";")
@@ -56,10 +73,12 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
   }
   if (any(taxa.ba.mat.string == "UNDEF")) stop("Taxon string matrix was not fully initialized.")
 
+  # Validate taxonomy against reference
   taxa.ba.mat.is_valid <- matrix(taxa.ba.mat.string %in% silva.taxa$Taxon, ncol = 6)
   taxa.ba.mat[!taxa.ba.mat.is_valid] <- NA
   taxa.ba.mat[taxa.ba.mat %in% c("Uncultured", "uncultured")] <- NA
 
+  # Handle species information if requested
   if (include.species) {
     taxa.ba.mat <- cbind(taxa.ba.mat, matrix(sapply(taxa.ba, `[`, 7), ncol = 1, byrow = TRUE))
     genus <- taxa.ba.mat[, 6]
@@ -85,35 +104,49 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
                                NA)
   }
 
+  # Sample Eukaryota sequences
   set.seed(100)
-  euk_ids <- names(taxl)[kingdom %in% "Eukaryota"]
+  euk_ids <- ref_ids[kingdom %in% "Eukaryota"]
   if (length(euk_ids) < n_euk) stop("Requested number of eukaryotic sequences exceeds available.")
   euk.keep <- sample(euk_ids, n_euk)
 
+  # Create taxonomy matrix for Eukaryota
   taxa.euk.mat <- matrix("", nrow = n_euk, ncol = ncol(taxa.ba.mat))
   rownames(taxa.euk.mat) <- euk.keep
   taxa.euk.mat[, 1] <- "Eukaryota"
   taxa.euk.mat[, 2:ncol(taxa.euk.mat)] <- NA
 
+  # Combine taxonomy matrices
   taxa.mat.final <- rbind(taxa.ba.mat, taxa.euk.mat)
 
+  # Generate final taxonomy strings
   taxa.string.final <- apply(taxa.mat.final, 1, function(x) {
     tst <- paste(x, collapse = ";")
     tst <- paste0(tst, ";")
     gsub("NA;", "", tst)
   })
 
+  # Validation checks
   if (any(is.na(names(taxa.string.final)))) stop("NA names in final taxon strings.")
-  if (!all(names(taxa.string.final) %in% names(xset))) stop("Some names don't match sequence names.")
+  if (!all(names(taxa.string.final) %in% ref_ids)) stop("Some names don't match sequence IDs.")
 
+  # Subset sequences for output
   xset.out <- xset[names(taxa.string.final)]
-  names(xset.out) <- names(taxa.string.final)
 
-  writeFasta(ShortRead(xset.out), fout_fasta, width = 20000L, compress = compress)
+  # Prepare FASTA output with proper headers
+  # First, create properly formatted FASTA headers with sequence IDs
+  proper_headers <- names(xset.out)  # These are the sequence IDs
+
+  # Create ShortRead object with proper sequence IDs
+  short_read_out <- ShortRead(sread = xset.out, id = BStringSet(proper_headers))
+
+  # Write output files
+  writeFasta(short_read_out, fout_fasta, width = 20000L, compress = compress)
 
   taxonomy_df <- data.frame(ID = names(taxa.string.final), Taxonomy = taxa.string.final)
   write.table(taxonomy_df, fout_taxonomy, sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 
+  # Report summary statistics
   cat(length(xset.out), "reference sequences were output.\n")
   print(table(taxa.mat.final[, 1], useNA = "ifany"))
   if (include.species)
