@@ -275,3 +275,4 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
     if (include.species)
       cat(sum(!is.na(taxa.mat.final[, 7])), "entries include species names.\n")
   }
+}
