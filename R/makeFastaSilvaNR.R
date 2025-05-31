@@ -132,7 +132,27 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
       }
     }
 
-    taxa.ba.mat[taxa.ba.mat %in% c("Uncultured", "uncultured", "metagenome", "uncultured bacterium")] <- NA_character_
+    taxa.ba.mat[grepl("uncultured|unknown|unidentified", taxa.ba.mat, ignore.case = TRUE)] <- NA_character_
+
+    # Handle "Incertae Sedis" - remove from terminal positions and propagate backwards
+    for (r_idx in 1:nrow(taxa.ba.mat)) {
+      # Find the rightmost (terminal) non-NA position
+      rightmost_non_na <- max(which(!is.na(taxa.ba.mat[r_idx, ])), 0)
+
+      # Work backwards from the terminal position, removing "Incertae Sedis"
+      if (rightmost_non_na > 0) {
+        for (c_idx in rightmost_non_na:1) {
+          if (!is.na(taxa.ba.mat[r_idx, c_idx]) &&
+              grepl("Incertae Sedis", taxa.ba.mat[r_idx, c_idx], ignore.case = FALSE)) {
+            taxa.ba.mat[r_idx, c_idx] <- NA_character_
+          } else {
+            # Stop when we hit a non-"Incertae Sedis" term
+            break
+          }
+        }
+      }
+    }
+
     # Propagate NAs hierarchically after all modifications
     for (r_idx in 1:nrow(taxa.ba.mat)) {
       for (c_idx in 1:(ncol(taxa.ba.mat)-1)) { # Iterate up to second to last column
@@ -352,3 +372,4 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
 
   return(invisible(TRUE))
 }
+
