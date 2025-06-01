@@ -2,8 +2,8 @@ Package: SilvaFormatter
 Type: Package
 Title: Tool for Processing SILVA Database FASTA and Taxonomy Files
 Version: 1.0.0
-Author: Marko Suokas [aut, cre]
-Maintainer: Marko Suokas <msuokas-bco@users.noreply.github.com>
+Author: Marko Suokas <your.email@example.com>
+Maintainer: Marko Suokas <your.email@example.com>
 Description: Provides functions to clean and reformat SILVA sequence and
     taxonomy data for downstream workflows.
 License: GPL-3

@@ -1,16 +1,15 @@
-#' Create SILVA-style FASTA and taxonomy files
+#' Create FASTA and taxonomy files for microbiome analysis
 #'
-#' Reads a SILVA FASTA file, extracts taxonomic annotations, cleans and filters them,
-#' and outputs a new FASTA and taxonomy TSV file. Optionally includes a set number of Eukaryota sequences
-#' and filters for valid species-level annotations.
+#' Reads a SILVA FASTA file (NR recommended), extracts taxonomic annotations, cleans and filters them,
+#' and outputs a new FASTA and taxonomy TSV file. Optionally includes a set number of eukaryotic sequences.
 #'
 #' @param fin Path to the input SILVA FASTA file (RNA sequences).
-#' @param ftax Path to the SILVA taxonomy file with valid taxon strings and levels.
+#' @param ftax Path to the SILVA taxonomy map file with valid taxon strings and levels.
 #' @param fout_fasta Path to the output FASTA file.
 #' @param fout_taxonomy Path to the output taxonomy TSV file.
-#' @param include.species Logical; whether to include valid species names in taxonomy.
+#' @param include.species Logical; whether to include species names in taxonomy.
 #' @param compress Logical; whether to compress the FASTA output using gzip.
-#' @param n_euk Integer; number of Eukaryota sequences to include in the final output.
+#' @param n_euk Integer; number of random eukaryotic sequences to include in the final output.
 #'
 #' @return Writes a FASTA and a taxonomy file to disk. Returns nothing.
 #' @export
@@ -19,7 +18,7 @@
 #' \dontrun{
 #' makeFastaSilvaNR("SILVA.fasta", "SILVA_taxonomy.tsv",
 #'                  "output.fasta.gz", "output_taxonomy.tsv",
-#'                  include.species = TRUE, compress = TRUE, n_euk = 100)
+#'                  include.species = TRUE, compress = FALSE, n_euk = 100)
 #'}
 
 # Check and install BiocManager if not already installed
@@ -132,26 +131,30 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
       }
     }
 
-    taxa.ba.mat[grepl("uncultured|unknown|unidentified", taxa.ba.mat, ignore.case = TRUE)] <- NA_character_
+#    taxa.ba.mat[taxa.ba.mat %in% c("Uncultured", "uncultured", "Unknown", "unknown",
+#                                   "Undidentified", "unidentified")] <- NA_character_
 
-    # Handle "Incertae Sedis" - remove from terminal positions and propagate backwards
-    for (r_idx in 1:nrow(taxa.ba.mat)) {
+    # Matches also partial strings
+      taxa.ba.mat[grepl("uncultured|unknown|unidentified", taxa.ba.mat, ignore.case = TRUE)] <- NA_character_
+
+      # Handle "Incertae Sedis" - remove from terminal positions and propagate backwards
+      for (r_idx in 1:nrow(taxa.ba.mat)) {
       # Find the rightmost (terminal) non-NA position
       rightmost_non_na <- max(which(!is.na(taxa.ba.mat[r_idx, ])), 0)
 
       # Work backwards from the terminal position, removing "Incertae Sedis"
       if (rightmost_non_na > 0) {
-        for (c_idx in rightmost_non_na:1) {
-          if (!is.na(taxa.ba.mat[r_idx, c_idx]) &&
-              grepl("Incertae Sedis", taxa.ba.mat[r_idx, c_idx], ignore.case = FALSE)) {
-            taxa.ba.mat[r_idx, c_idx] <- NA_character_
-          } else {
-            # Stop when we hit a non-"Incertae Sedis" term
-            break
-          }
-        }
-      }
-    }
+         for (c_idx in rightmost_non_na:1) {
+           if (!is.na(taxa.ba.mat[r_idx, c_idx]) &&
+               grepl("Incertae Sedis", taxa.ba.mat[r_idx, c_idx], ignore.case = FALSE)) {
+               taxa.ba.mat[r_idx, c_idx] <- NA_character_
+           } else {
+            # Stop when hitting a non-"Incertae Sedis" term
+             break
+           }
+         }
+       }
+     }
 
     # Propagate NAs hierarchically after all modifications
     for (r_idx in 1:nrow(taxa.ba.mat)) {
@@ -259,7 +262,7 @@ makeFastaSilvaNR <- function(fin, ftax, fout_fasta, fout_taxonomy,
     }
   }
 
-  # 9. Sample Eukaryota sequences
+  # 9. Sample eukaryotic sequences
   euk_indices <- which(kingdom_from_fasta == "Eukaryota" & !is.na(kingdom_from_fasta))
   euk_ids_available <- ref_ids[euk_indices]
   n_euk_actual <- 0
