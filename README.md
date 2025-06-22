@@ -1,5 +1,7 @@
 ## SilvaFormatter
 
+Deprecated. Please use taxreftool instead.
+
 ### Overview
 
 SilvaFormatter is a R package designed to prepare SILVA reference files for microbiome analysis. Primarily it is intended to be used for non-redundant data set.
